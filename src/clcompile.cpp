@@ -174,10 +174,20 @@ void print_help()
                 "-d, --device-id   <INTEGER> Index of the device to target\n"
                 "\n"
                 "-h, --help                  Print this help message\n"
+                "-v, --version               Print the program's version\n"
                 "\n"
                 "CLOPTIONS\n"
                 "\n"
                 "See options listed on https://man.opencl.org/clBuildProgram.html\n");
+}
+
+#define CLC_STRINGIFY_(a) #a
+#define CLC_STRINGIFY(a) CLC_STRINGIFY_(a)
+
+/** Print the version message of the program to stdout */
+void print_version()
+{
+    std::printf("0.1 (cl_target_opencl_version:%s)\n", CLC_STRINGIFY(CL_TARGET_OPENCL_VERSION));
 }
 
 /** Parse the program command line arguments
@@ -230,6 +240,12 @@ int parse_args(int argc, const char **argv, bool &exit, clcompile_options &optio
         else if (!strcmp("--help", argv[i]) || !strcmp("-h", argv[i]))
         {
             print_help();
+            exit = true;
+            return EXIT_SUCCESS;
+        }
+        else if (!strcmp("--version", argv[i]) || !strcmp("-v", argv[i]))
+        {
+            print_version();
             exit = true;
             return EXIT_SUCCESS;
         }

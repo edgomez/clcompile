@@ -13,9 +13,15 @@ add_executable(clcompile
   src/scope_guard.h
 )
 
+math(EXPR CL_TARGET_OPENCL_VERSION
+  "${OpenCL_VERSION_MAJOR} * 100 + ${OpenCL_VERSION_MINOR}*10"
+  OUTPUT_FORMAT
+    DECIMAL
+)
+
 target_compile_definitions(clcompile
   PRIVATE
-    CL_TARGET_OPENCL_VERSION=100
+    CL_TARGET_OPENCL_VERSION=${CL_TARGET_OPENCL_VERSION}
 )
 
 target_link_libraries(clcompile

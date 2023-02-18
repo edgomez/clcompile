@@ -45,6 +45,7 @@ OPTIONS
 -d, --device-id   <INTEGER> Index of the device to target
 
 -h, --help                  Print this help message
+-v, --version               Print the program's version
 
 CLOPTIONS
 
