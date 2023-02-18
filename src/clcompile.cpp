@@ -148,20 +148,24 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
 struct clcompile_options
 {
     std::vector<const char *> filenames;
+    std::vector<const char *> clargs;
     cl_uint platform_id = 0;
     cl_uint device_id = 0;
 };
 
 void print_help()
 {
-    std::printf("usage: clcompile [OPTIONS] <filename...>\n"
+    std::printf("usage: clcompile [OPTION...] <filename...> -- [CLOPTION...]\n"
                 "\n"
                 "OPTIONS\n"
                 "\n"
                 "-p, --platform-id <INTEGER> Index of the platform to target\n"
                 "-d, --device-id   <INTEGER> Index of the device to target\n"
                 "\n"
-                "-h, --help                  Print this help message\n");
+                "-h, --help                  Print this help message\n"
+                "\n"
+                "CLOPTION\n"
+                "See options listed on https://man.opencl.org/clBuildProgram.html\n");
 }
 
 int parse_args(int argc, const char **argv, bool &exit, clcompile_options &options)
@@ -174,7 +178,10 @@ int parse_args(int argc, const char **argv, bool &exit, clcompile_options &optio
         return EXIT_FAILURE;
     }
 
-    for (int i = 1; i < argc; ++i)
+    int i = 1;
+
+    // process non cl options
+    for (i = 1; i < argc; ++i)
     {
         if (!std::strcmp("--device-id", argv[i]) || !std::strcmp("-d", argv[i]))
         {
@@ -204,10 +211,22 @@ int parse_args(int argc, const char **argv, bool &exit, clcompile_options &optio
             exit = true;
             return EXIT_SUCCESS;
         }
+        else if (!strcmp("--", argv[i]))
+        {
+            // stop processing normal arguments, let the second loop accumulate
+            // the options passed to the CL compiler
+            ++i;
+            break;
+        }
         else
         {
             options.filenames.emplace_back(argv[i]);
         }
+    }
+    while (i < argc)
+    {
+        options.clargs.push_back(argv[i]);
+        ++i;
     }
 
     if (options.filenames.size() == 0)
