@@ -4,6 +4,8 @@
 #ifndef scope_guard_h
 #define scope_guard_h
 
+#include <utility>
+
 namespace
 {
 

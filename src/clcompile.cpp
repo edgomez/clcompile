@@ -1,30 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2023 Edouard Gomez
 
-#include <CL/cl.h>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <vector>
-
 #include "clutils.h"
 #include "scope_guard.h"
 
+#include <CL/cl.h>
+#include <cstring>
+#include <vector>
+
 namespace
 {
-
-#define logerr(...)                                                                                                    \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        std::fprintf(stderr, "error: " __VA_ARGS__);                                                                   \
-    } while (0)
-
-#define loginfo(...)                                                                                                   \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        std::fprintf(stdout, "info: " __VA_ARGS__);                                                                    \
-    } while (0)
 
 /** Loads the content from a file
  *
@@ -79,166 +64,6 @@ char *load_file(const char *fn)
 
     return source;
 }
-
-/** clcompile context */
-class clc_context
-{
-  public:
-    clc_context() = default;
-
-    ~clc_context()
-    {
-        if (m_context)
-        {
-            clReleaseContext(m_context);
-            m_context = nullptr;
-        }
-    };
-
-    /** Initialize an OpenCL context
-     *
-     * @param[in] platform_id Platform index to create the context for
-     * @param[in] platform_id Platform index to create the context for
-     */
-    bool init(cl_uint platform_id, cl_uint device_id)
-    {
-        using namespace clc;
-
-        cl_uint num_platforms;
-        cl_int err = clGetPlatformIDs(0, nullptr, &num_platforms);
-        if (err != CL_SUCCESS)
-        {
-            logerr("could not retrieve the number of platforms (err=%s)\n", cl_error_str(err));
-            return false;
-        }
-
-        if (platform_id >= num_platforms)
-        {
-            logerr("the requested platform %ud cannot be found\n", platform_id);
-            return false;
-        }
-
-        std::vector<cl_platform_id> platforms(static_cast<size_t>(num_platforms));
-        err = clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
-        if (err != CL_SUCCESS)
-        {
-            logerr("could not retrieve the platforms IDs (err=%s)\n", cl_error_str(err));
-            return false;
-        }
-
-        cl_uint num_devices;
-        err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, 0, nullptr, &num_devices);
-        if (err != CL_SUCCESS)
-        {
-            logerr("could not retrieve the number of devices "
-                   "for platform=%ud (err=%s)\n",
-                   platform_id, cl_error_str(err));
-            return false;
-        }
-
-        if (device_id >= num_devices)
-        {
-            logerr("no device index=%ud found for platform=%ud\n", device_id, platform_id);
-            return false;
-        }
-
-        std::vector<cl_device_id> devices(num_devices);
-        err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, devices.size(), devices.data(), nullptr);
-        if (err != CL_SUCCESS)
-        {
-            logerr("could not retrieve the devices IDs "
-                   "for platform=%ud (err=%s)\n",
-                   platform_id, cl_error_str(err));
-            return false;
-        }
-
-        cl_device_id device = devices[device_id];
-
-        size_t name_len;
-        err = clGetDeviceInfo(device, CL_DEVICE_NAME, 0, nullptr, &name_len);
-        if (err != CL_SUCCESS)
-        {
-            logerr("could not retrieve the device name length"
-                   "for platform=%ud device=%ud (err=%s)\n",
-                   platform_id, device_id, cl_error_str(err));
-            return false;
-        }
-
-        std::vector<char> name(name_len);
-        err = clGetDeviceInfo(device, CL_DEVICE_NAME, name_len, name.data(), NULL);
-        if (err != CL_SUCCESS)
-        {
-            logerr("could not retrieve the device name length"
-                   "for platform=%ud device=%ud (err=%s)\n",
-                   platform_id, device_id, cl_error_str(err));
-            return false;
-        }
-
-        loginfo("found device % s\n ", name.data());
-
-        cl_context context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &err);
-        if (err != CL_SUCCESS)
-        {
-            logerr("failed creating context for platform=%ud device=%ud (err=%s)\n", platform_id, device_id,
-                   cl_error_str(err));
-            return false;
-        }
-
-        m_platform = platforms[platform_id];
-        m_device = devices[device_id];
-        m_context = context;
-
-        return true;
-    }
-
-    bool build(const char *src)
-    {
-        using namespace clc;
-
-        cl_int err;
-
-        cl_program program = clCreateProgramWithSource(m_context, 1, (const char **)&src, nullptr, &err);
-        if (err != CL_SUCCESS)
-        {
-            logerr("failed creating program (err=%s)", cl_error_str(err));
-            return false;
-        }
-
-        on_scope_guard([&program]() { clReleaseProgram(program); });
-
-        err = clBuildProgram(program, 1, &m_device, "", nullptr, nullptr);
-        if (err == CL_SUCCESS)
-        {
-            loginfo("program built successfully.\n");
-            return true;
-        }
-        else
-        {
-            logerr("failed building the program (err=%s)\n", cl_error_str(err));
-        }
-
-        if (err == CL_BUILD_PROGRAM_FAILURE)
-        {
-            size_t sz;
-            clGetProgramBuildInfo(program, m_device, CL_PROGRAM_BUILD_LOG, 0, NULL, &sz);
-            std::vector<char> log(++sz);
-            clGetProgramBuildInfo(program, m_device, CL_PROGRAM_BUILD_LOG, log.size(), log.data(), &sz);
-            logerr("log length=%zd\nbuild log: \n%s\n", sz, log.data());
-        }
-
-        return false;
-    }
-
-  private:
-    /** platform in use */
-    cl_platform_id m_platform = nullptr;
-
-    /** device in use */
-    cl_device_id m_device = nullptr;
-
-    /** opencl context */
-    cl_context m_context = nullptr;
-};
 
 /** Program options structure */
 struct clcompile_options
@@ -384,8 +209,8 @@ int main(int argc, const char **argv)
         return retval;
     }
 
-    clc_context ctx;
-    if (!ctx.init(opts.platform_id, opts.device_id))
+    clc::compiler c;
+    if (!c.init(opts.platform_id, opts.device_id))
     {
         return EXIT_FAILURE;
     }
@@ -398,7 +223,7 @@ int main(int argc, const char **argv)
             return EXIT_FAILURE;
         }
         on_scope_guard([source]() { delete[] source; });
-        ctx.build(source);
+        c.build(source);
     }
 
     return EXIT_SUCCESS;
