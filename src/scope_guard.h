@@ -28,7 +28,7 @@ template <typename F> struct scope_guard
     }
     void dismiss()
     {
-        m_dismissed = false;
+        m_dismissed = true;
     }
     F m_f;
     bool m_dismissed = false;
