@@ -75,6 +75,8 @@ char *load_file(const char *fn)
         return nullptr;
     }
 
+    failedRead.dismiss();
+
     return source;
 }
 
