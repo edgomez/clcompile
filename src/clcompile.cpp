@@ -67,7 +67,7 @@ char *load_file(const char *fn)
         logerr("failed allocating memory for reading source file \"%s\"\n", fn);
         return nullptr;
     }
-    on_scope_guard_named(failedRead, [source]() { delete source; });
+    on_scope_guard_named(failedRead, [source]() { delete[] source; });
 
     if (std::fread(source, 1, flen, f) != flen)
     {
@@ -307,7 +307,7 @@ int main(int argc, const char **argv)
         {
             return EXIT_FAILURE;
         }
-        on_scope_guard([source]() { delete source; });
+        on_scope_guard([source]() { delete[] source; });
     }
 
     return EXIT_SUCCESS;
