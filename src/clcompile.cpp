@@ -14,6 +14,18 @@
 namespace
 {
 
+#define logerr(...)                                                                                                    \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        std::fprintf(stderr, "error: " __VA_ARGS__);                                                                   \
+    } while (0)
+
+#define loginfo(...)                                                                                                   \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        std::fprintf(stdout, "info: " __VA_ARGS__);                                                                    \
+    } while (0)
+
 /** Loads the content from a file
  *
  * @param[in] fn filename to load
@@ -26,40 +38,40 @@ char *load_file(const char *fn)
     FILE *f = std::fopen(fn, "r");
     if (!f)
     {
-        std::fprintf(stderr, "error: failed opening the file \"%s\"\n", fn);
+        logerr("failed opening the file \"%s\"\n", fn);
         return nullptr;
     }
     on_scope_guard([f]() { fclose(f); });
 
     if (fseek(f, 0, SEEK_END) < 0)
     {
-        std::fprintf(stderr, "error: could not seek to the end of the file \"%s\"\n", fn);
+        logerr("could not seek to the end of the file \"%s\"\n", fn);
         return nullptr;
     };
 
     long flen = ftell(f);
     if (flen < 0)
     {
-        std::fprintf(stderr, "error: failed determining the size of the file \"%s\"\n", fn);
+        logerr("failed determining the size of the file \"%s\"\n", fn);
         return nullptr;
     }
     if (fseek(f, 0, SEEK_SET) < 0)
     {
-        std::fprintf(stderr, "error: could not seek back to the beginning of the file \"%s\"\n", fn);
+        logerr("could not seek back to the beginning of the file \"%s\"\n", fn);
         return nullptr;
     };
 
     char *source = new char[flen];
     if (!source)
     {
-        std::fprintf(stderr, "error: failed allocating memory for reading source file \"%s\"\n", fn);
+        logerr("failed allocating memory for reading source file \"%s\"\n", fn);
         return nullptr;
     }
     on_scope_guard_named(failedRead, [source]() { delete source; });
 
     if (std::fread(source, 1, flen, f) != flen)
     {
-        std::fprintf(stderr, "error: failed reading the source file \"%s\"'s content\n", fn);
+        logerr("failed reading the source file \"%s\"'s content\n", fn);
         return nullptr;
     }
 
@@ -74,13 +86,13 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
     cl_int err = clGetPlatformIDs(0, nullptr, &num_platforms);
     if (err != CL_SUCCESS)
     {
-        std::fprintf(stderr, "error: could not retrieve the number of platforms (err=%s)\n", cl_error_str(err));
+        logerr("could not retrieve the number of platforms (err=%s)\n", cl_error_str(err));
         return;
     }
 
     if (platform_id >= num_platforms)
     {
-        std::fprintf(stderr, "error: the requested platform %ud cannot be found\n", platform_id);
+        logerr("the requested platform %ud cannot be found\n", platform_id);
         return;
     }
 
@@ -88,7 +100,7 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
     err = clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
     if (err != CL_SUCCESS)
     {
-        std::fprintf(stderr, "error: could not retrieve the platforms IDs (err=%s)\n", cl_error_str(err));
+        logerr("could not retrieve the platforms IDs (err=%s)\n", cl_error_str(err));
         return;
     }
 
@@ -96,16 +108,15 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
     err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, 0, nullptr, &num_devices);
     if (err != CL_SUCCESS)
     {
-        std::fprintf(stderr,
-                     "error: could not retrieve the number of devices "
-                     "for platform=%ud (err=%s)\n",
-                     platform_id, cl_error_str(err));
+        logerr("could not retrieve the number of devices "
+               "for platform=%ud (err=%s)\n",
+               platform_id, cl_error_str(err));
         return;
     }
 
     if (device_id >= num_devices)
     {
-        std::fprintf(stderr, "error: no device index=%ud found for platform=%ud\n", device_id, platform_id);
+        logerr("no device index=%ud found for platform=%ud\n", device_id, platform_id);
         return;
     }
 
@@ -113,10 +124,9 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
     err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, devices.size(), devices.data(), nullptr);
     if (err != CL_SUCCESS)
     {
-        std::fprintf(stderr,
-                     "error: could not retrieve the devices IDs "
-                     "for platform=%ud (err=%s)\n",
-                     platform_id, cl_error_str(err));
+        logerr("could not retrieve the devices IDs "
+               "for platform=%ud (err=%s)\n",
+               platform_id, cl_error_str(err));
         return;
     }
 
@@ -126,10 +136,9 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
     err = clGetDeviceInfo(device, CL_DEVICE_NAME, 0, nullptr, &name_len);
     if (err != CL_SUCCESS)
     {
-        std::fprintf(stderr,
-                     "error: could not retrieve the device name length"
-                     "for platform=%ud device=%ud (err=%s)\n",
-                     platform_id, device_id, cl_error_str(err));
+        logerr("could not retrieve the device name length"
+               "for platform=%ud device=%ud (err=%s)\n",
+               platform_id, device_id, cl_error_str(err));
         return;
     }
 
@@ -137,14 +146,13 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
     err = clGetDeviceInfo(device, CL_DEVICE_NAME, name_len, name.data(), NULL);
     if (err != CL_SUCCESS)
     {
-        std::fprintf(stderr,
-                     "error: could not retrieve the device name length"
-                     "for platform=%ud device=%ud (err=%s)\n",
-                     platform_id, device_id, cl_error_str(err));
+        logerr("could not retrieve the device name length"
+               "for platform=%ud device=%ud (err=%s)\n",
+               platform_id, device_id, cl_error_str(err));
         return;
     }
 
-    std::printf("info: found device %s\n", name.data());
+    loginfo("found device % s\n ", name.data());
 }
 
 /** Program options structure */
@@ -219,7 +227,7 @@ int parse_args(int argc, const char **argv, bool &exit, clcompile_options &optio
         {
             if (i < argc - 1)
             {
-                std::fprintf(stderr, "error: missing argument for option %s", argv[i]);
+                logerr("missing argument for option %s", argv[i]);
                 exit = true;
                 return EXIT_FAILURE;
             }
@@ -230,7 +238,7 @@ int parse_args(int argc, const char **argv, bool &exit, clcompile_options &optio
         {
             if (i < argc - 1)
             {
-                std::fprintf(stderr, "error: missing argument for option %s", argv[i]);
+                logerr("missing argument for option %s", argv[i]);
                 exit = true;
                 return EXIT_FAILURE;
             }
