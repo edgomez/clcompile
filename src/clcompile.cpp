@@ -193,12 +193,28 @@ class clc_context
 
     bool build(const char *src)
     {
-        cl_program program = clCreateProgramWithSource(m_context, 1, (const char **)&src, nullptr, nullptr);
-        cl_int err = clBuildProgram(program, 1, &m_device, "", nullptr, nullptr);
+        using namespace clc;
+
+        cl_int err;
+
+        cl_program program = clCreateProgramWithSource(m_context, 1, (const char **)&src, nullptr, &err);
+        if (err != CL_SUCCESS)
+        {
+            logerr("failed creating program (err=%s)", cl_error_str(err));
+            return false;
+        }
+
+        on_scope_guard([&program]() { clReleaseProgram(program); });
+
+        err = clBuildProgram(program, 1, &m_device, "", nullptr, nullptr);
         if (err == CL_SUCCESS)
         {
             loginfo("program built successfully.\n");
             return true;
+        }
+        else
+        {
+            logerr("failed building the program (err=%s)\n", cl_error_str(err));
         }
 
         if (err == CL_BUILD_PROGRAM_FAILURE)
@@ -206,12 +222,8 @@ class clc_context
             size_t sz;
             clGetProgramBuildInfo(program, m_device, CL_PROGRAM_BUILD_LOG, 0, NULL, &sz);
             std::vector<char> log(++sz);
-            clGetProgramBuildInfo(program, m_device, CL_PROGRAM_BUILD_LOG, log.size(), log.data(), nullptr);
-            logerr("%s\n", log.data());
-        }
-        else
-        {
-            logerr("unknown error\n");
+            clGetProgramBuildInfo(program, m_device, CL_PROGRAM_BUILD_LOG, log.size(), log.data(), &sz);
+            logerr("log length=%zd\nbuild log: \n%s\n", sz, log.data());
         }
 
         return false;
@@ -283,7 +295,6 @@ void print_version()
  */
 int parse_args(int argc, const char **argv, bool &exit, clcompile_options &options)
 {
-
     if (argc < 2)
     {
         print_help();
