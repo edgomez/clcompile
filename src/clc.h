@@ -1,24 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2023 Edouard Gomez
 
-#ifndef clutils_h
-#define clutils_h
+#ifndef clc_h
+#define clc_h
 
 #include <CL/cl.h>
-
-#include <cstdio>
-
-#define logerr(...)                                                                                                    \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        std::fprintf(stderr, "error: " __VA_ARGS__);                                                                   \
-    } while (0)
-
-#define loginfo(...)                                                                                                   \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        std::fprintf(stdout, "info: " __VA_ARGS__);                                                                    \
-    } while (0)
 
 namespace clc
 {
@@ -63,4 +49,4 @@ class compiler
 
 } // namespace clc
 
-#endif // clutils_h
+#endif // clc_h

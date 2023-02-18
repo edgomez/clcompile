@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2023 Edouard Gomez
 
-#include "clutils.h"
+#include "clc.h"
+#include "log.h"
 #include "scope_guard.h"
 
 #include <CL/cl.h>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 

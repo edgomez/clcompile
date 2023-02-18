@@ -7,9 +7,10 @@ project(CLCompile
 find_package(OpenCL REQUIRED)
 
 add_executable(clcompile
-  src/clcompile.cpp
-  src/clutils.cpp
-  src/clutils.h
+  src/main.cpp
+  src/clc.cpp
+  src/clc.h
+  src/log.h
   src/scope_guard.h
 )
 
