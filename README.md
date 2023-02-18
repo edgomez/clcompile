@@ -6,6 +6,7 @@
     - [Requirements](#requirements)
     - [Instructions](#instructions)
   - [Usage](#usage)
+  - [License](#license)
 
 ## Description
 
@@ -51,3 +52,9 @@ CLOPTIONS
 
 See options listed on https://man.opencl.org/clBuildProgram.html
 ```
+
+## License
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/mit-0/)
+
+For the complete text, refer to the [license file](./LICENSE.md)
