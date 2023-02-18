@@ -80,82 +80,153 @@ char *load_file(const char *fn)
     return source;
 }
 
-void opencl_create_context(cl_uint platform_id, cl_uint device_id)
+/** clcompile context */
+class clc_context
 {
-    using namespace clc;
+  public:
+    clc_context() = default;
 
-    cl_uint num_platforms;
-    cl_int err = clGetPlatformIDs(0, nullptr, &num_platforms);
-    if (err != CL_SUCCESS)
+    ~clc_context()
     {
-        logerr("could not retrieve the number of platforms (err=%s)\n", cl_error_str(err));
-        return;
+        if (m_context)
+        {
+            clReleaseContext(m_context);
+            m_context = nullptr;
+        }
+    };
+
+    /** Initialize an OpenCL context
+     *
+     * @param[in] platform_id Platform index to create the context for
+     * @param[in] platform_id Platform index to create the context for
+     */
+    bool init(cl_uint platform_id, cl_uint device_id)
+    {
+        using namespace clc;
+
+        cl_uint num_platforms;
+        cl_int err = clGetPlatformIDs(0, nullptr, &num_platforms);
+        if (err != CL_SUCCESS)
+        {
+            logerr("could not retrieve the number of platforms (err=%s)\n", cl_error_str(err));
+            return false;
+        }
+
+        if (platform_id >= num_platforms)
+        {
+            logerr("the requested platform %ud cannot be found\n", platform_id);
+            return false;
+        }
+
+        std::vector<cl_platform_id> platforms(static_cast<size_t>(num_platforms));
+        err = clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
+        if (err != CL_SUCCESS)
+        {
+            logerr("could not retrieve the platforms IDs (err=%s)\n", cl_error_str(err));
+            return false;
+        }
+
+        cl_uint num_devices;
+        err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, 0, nullptr, &num_devices);
+        if (err != CL_SUCCESS)
+        {
+            logerr("could not retrieve the number of devices "
+                   "for platform=%ud (err=%s)\n",
+                   platform_id, cl_error_str(err));
+            return false;
+        }
+
+        if (device_id >= num_devices)
+        {
+            logerr("no device index=%ud found for platform=%ud\n", device_id, platform_id);
+            return false;
+        }
+
+        std::vector<cl_device_id> devices(num_devices);
+        err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, devices.size(), devices.data(), nullptr);
+        if (err != CL_SUCCESS)
+        {
+            logerr("could not retrieve the devices IDs "
+                   "for platform=%ud (err=%s)\n",
+                   platform_id, cl_error_str(err));
+            return false;
+        }
+
+        cl_device_id device = devices[device_id];
+
+        size_t name_len;
+        err = clGetDeviceInfo(device, CL_DEVICE_NAME, 0, nullptr, &name_len);
+        if (err != CL_SUCCESS)
+        {
+            logerr("could not retrieve the device name length"
+                   "for platform=%ud device=%ud (err=%s)\n",
+                   platform_id, device_id, cl_error_str(err));
+            return false;
+        }
+
+        std::vector<char> name(name_len);
+        err = clGetDeviceInfo(device, CL_DEVICE_NAME, name_len, name.data(), NULL);
+        if (err != CL_SUCCESS)
+        {
+            logerr("could not retrieve the device name length"
+                   "for platform=%ud device=%ud (err=%s)\n",
+                   platform_id, device_id, cl_error_str(err));
+            return false;
+        }
+
+        loginfo("found device % s\n ", name.data());
+
+        cl_context context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &err);
+        if (err != CL_SUCCESS)
+        {
+            logerr("failed creating context for platform=%ud device=%ud (err=%s)\n", platform_id, device_id,
+                   cl_error_str(err));
+            return false;
+        }
+
+        m_platform = platforms[platform_id];
+        m_device = devices[device_id];
+        m_context = context;
+
+        return true;
     }
 
-    if (platform_id >= num_platforms)
+    bool build(const char *src)
     {
-        logerr("the requested platform %ud cannot be found\n", platform_id);
-        return;
+        cl_program program = clCreateProgramWithSource(m_context, 1, (const char **)&src, nullptr, nullptr);
+        cl_int err = clBuildProgram(program, 1, &m_device, "", nullptr, nullptr);
+        if (err == CL_SUCCESS)
+        {
+            loginfo("program built successfully.\n");
+            return true;
+        }
+
+        if (err == CL_BUILD_PROGRAM_FAILURE)
+        {
+            size_t sz;
+            clGetProgramBuildInfo(program, m_device, CL_PROGRAM_BUILD_LOG, 0, NULL, &sz);
+            std::vector<char> log(++sz);
+            clGetProgramBuildInfo(program, m_device, CL_PROGRAM_BUILD_LOG, log.size(), log.data(), nullptr);
+            logerr("%s\n", log.data());
+        }
+        else
+        {
+            logerr("unknown error\n");
+        }
+
+        return false;
     }
 
-    std::vector<cl_platform_id> platforms(static_cast<size_t>(num_platforms));
-    err = clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
-    if (err != CL_SUCCESS)
-    {
-        logerr("could not retrieve the platforms IDs (err=%s)\n", cl_error_str(err));
-        return;
-    }
+  private:
+    /** platform in use */
+    cl_platform_id m_platform = nullptr;
 
-    cl_uint num_devices;
-    err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, 0, nullptr, &num_devices);
-    if (err != CL_SUCCESS)
-    {
-        logerr("could not retrieve the number of devices "
-               "for platform=%ud (err=%s)\n",
-               platform_id, cl_error_str(err));
-        return;
-    }
+    /** device in use */
+    cl_device_id m_device = nullptr;
 
-    if (device_id >= num_devices)
-    {
-        logerr("no device index=%ud found for platform=%ud\n", device_id, platform_id);
-        return;
-    }
-
-    std::vector<cl_device_id> devices(num_devices);
-    err = clGetDeviceIDs(platforms[platform_id], CL_DEVICE_TYPE_ALL, devices.size(), devices.data(), nullptr);
-    if (err != CL_SUCCESS)
-    {
-        logerr("could not retrieve the devices IDs "
-               "for platform=%ud (err=%s)\n",
-               platform_id, cl_error_str(err));
-        return;
-    }
-
-    cl_device_id device = devices[device_id];
-
-    size_t name_len;
-    err = clGetDeviceInfo(device, CL_DEVICE_NAME, 0, nullptr, &name_len);
-    if (err != CL_SUCCESS)
-    {
-        logerr("could not retrieve the device name length"
-               "for platform=%ud device=%ud (err=%s)\n",
-               platform_id, device_id, cl_error_str(err));
-        return;
-    }
-
-    std::vector<char> name(name_len);
-    err = clGetDeviceInfo(device, CL_DEVICE_NAME, name_len, name.data(), NULL);
-    if (err != CL_SUCCESS)
-    {
-        logerr("could not retrieve the device name length"
-               "for platform=%ud device=%ud (err=%s)\n",
-               platform_id, device_id, cl_error_str(err));
-        return;
-    }
-
-    loginfo("found device % s\n ", name.data());
-}
+    /** opencl context */
+    cl_context m_context = nullptr;
+};
 
 /** Program options structure */
 struct clcompile_options
@@ -207,8 +278,8 @@ void print_version()
  * @param[out] exit Should the program exit according to the argument processing
  * @param[out] options Resulting options from the argument processing
  *
- * @return Return value to be used on program exit (EXIT_SUCCESS when the processing succeeded, EXIT_FAILURE when some
- * option could not be parsed)
+ * @return Return value to be used on program exit (EXIT_SUCCESS when the processing succeeded, EXIT_FAILURE when
+ * some option could not be parsed)
  */
 int parse_args(int argc, const char **argv, bool &exit, clcompile_options &options)
 {
@@ -302,6 +373,12 @@ int main(int argc, const char **argv)
         return retval;
     }
 
+    clc_context ctx;
+    if (!ctx.init(opts.platform_id, opts.device_id))
+    {
+        return EXIT_FAILURE;
+    }
+
     for (const auto &fn : opts.filenames)
     {
         char *source = load_file(fn);
@@ -310,6 +387,7 @@ int main(int argc, const char **argv)
             return EXIT_FAILURE;
         }
         on_scope_guard([source]() { delete[] source; });
+        ctx.build(source);
     }
 
     return EXIT_SUCCESS;
