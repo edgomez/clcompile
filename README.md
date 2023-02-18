@@ -37,7 +37,7 @@ One can still change usual settings such as:
 ## Usage
 
 ```bash
-usage: clcompile [OPTIONS] <filename...>
+usage: clcompile [OPTION...] <filename...> -- [CLOPTION...]
 
 OPTIONS
 
@@ -45,4 +45,8 @@ OPTIONS
 -d, --device-id   <INTEGER> Index of the device to target
 
 -h, --help                  Print this help message
+
+CLOPTIONS
+
+See options listed on https://man.opencl.org/clBuildProgram.html
 ```

@@ -15,7 +15,9 @@ namespace
 {
 
 /** Loads the content from a file
- * @param fn filename to load
+ *
+ * @param[in] fn filename to load
+ *
  * @return nullptr if failed, or a valid pointer to a zero terminated c string
  * containing the file's contents
  */
@@ -145,14 +147,23 @@ void opencl_create_context(cl_uint platform_id, cl_uint device_id)
     std::printf("info: found device %s\n", name.data());
 }
 
+/** Program options structure */
 struct clcompile_options
 {
+    /** Files to be compiled */
     std::vector<const char *> filenames;
+
+    /** Options to pass over to teh CL compiler */
     std::vector<const char *> clargs;
+
+    /** CL Platform ID used for the compilation */
     cl_uint platform_id = 0;
+
+    /** CL Device used for the compilation */
     cl_uint device_id = 0;
 };
 
+/** Print the help message of the program to stdout */
 void print_help()
 {
     std::printf("usage: clcompile [OPTION...] <filename...> -- [CLOPTION...]\n"
@@ -164,10 +175,21 @@ void print_help()
                 "\n"
                 "-h, --help                  Print this help message\n"
                 "\n"
-                "CLOPTION\n"
+                "CLOPTIONS\n"
+                "\n"
                 "See options listed on https://man.opencl.org/clBuildProgram.html\n");
 }
 
+/** Parse the program command line arguments
+ *
+ * @param[in] argc Number of arguments in the @ref argv argument array
+ * @param[in] argv Array of zero terminated strings
+ * @param[out] exit Should the program exit according to the argument processing
+ * @param[out] options Resulting options from the argument processing
+ *
+ * @return Return value to be used on program exit (EXIT_SUCCESS when the processing succeeded, EXIT_FAILURE when some
+ * option could not be parsed)
+ */
 int parse_args(int argc, const char **argv, bool &exit, clcompile_options &options)
 {
 
